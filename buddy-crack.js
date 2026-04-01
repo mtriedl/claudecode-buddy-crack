@@ -5,13 +5,16 @@
 // and injects your custom companion. That's it.
 //
 // Usage:
-//   node buddy-crack.js '<json>'       Patch + inject in one step
+//   node buddy-crack.js                Read JSON from clipboard (or paste interactively)
+//   node buddy-crack.js companion.json Read JSON from file
 //   node buddy-crack.js unpatch        Restore original binary
 //   node buddy-crack.js status         Show current state
 
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+const { execSync } = require('child_process')
+const readline = require('readline')
 
 // --- Platform detection ---
 const IS_WIN = process.platform === 'win32'
@@ -177,10 +180,81 @@ function display(companion) {
 }
 
 // =======================================================
+// JSON INPUT HELPERS
+// =======================================================
+
+function readClipboard() {
+  try {
+    if (IS_WIN) {
+      return execSync('powershell -command "Get-Clipboard"', { encoding: 'utf8', timeout: 5000 }).trim()
+    } else if (IS_MAC) {
+      return execSync('pbpaste', { encoding: 'utf8', timeout: 5000 }).trim()
+    } else {
+      return execSync('xclip -selection clipboard -o', { encoding: 'utf8', timeout: 5000 }).trim()
+    }
+  } catch { return null }
+}
+
+function tryParseJSON(str) {
+  if (!str) return null
+  try {
+    const obj = JSON.parse(str)
+    if (obj && typeof obj === 'object' && obj.species) return obj
+  } catch {}
+  return null
+}
+
+function askForPaste() {
+  return new Promise(resolve => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    console.log('\n  Paste your companion JSON from the web creator and press Enter:\n')
+    rl.question('  > ', answer => {
+      rl.close()
+      resolve(answer.trim())
+    })
+  })
+}
+
+async function getCompanionJSON(args) {
+  // 1. If arg is a .json file path, read it
+  if (args[0] && (args[0].endsWith('.json') || fs.existsSync(args[0]))) {
+    const filePath = path.resolve(args[0])
+    if (!fs.existsSync(filePath)) {
+      console.error(`\n  ✗ File not found: ${filePath}\n`)
+      process.exit(1)
+    }
+    console.log(`  Reading from ${filePath}`)
+    return fs.readFileSync(filePath, 'utf8').trim()
+  }
+
+  // 2. If args look like JSON (starts with {), join and return
+  const joined = args.join(' ')
+  if (joined.startsWith('{')) return joined
+
+  // 3. No args — try clipboard first
+  if (args.length === 0) {
+    console.log('\n  Checking clipboard...')
+    const clip = readClipboard()
+    const parsed = tryParseJSON(clip)
+    if (parsed) {
+      console.log('  ✓ Found companion JSON in clipboard')
+      return clip
+    }
+    console.log('  No companion JSON found in clipboard.')
+
+    // 4. Fall back to interactive paste
+    return await askForPaste()
+  }
+
+  return joined
+}
+
+// =======================================================
 // MAIN
 // =======================================================
+async function main() {
 const args = process.argv.slice(2)
-const mode = args[0] || 'help'
+const mode = args[0] || ''
 
 // --- UNPATCH ---
 if (mode === 'unpatch') {
@@ -229,33 +303,37 @@ if (mode === 'status') {
 }
 
 // --- HELP ---
-if (mode === 'help' || mode === '--help' || mode === '-h') {
+if (mode === '--help' || mode === '-h' || mode === 'help') {
   console.log(`
   Claude Code Buddy Crack
   =======================
 
   Usage:
-    node buddy-crack.js '<json>'     Patch binary + inject companion (one step)
+    node buddy-crack.js              Auto-read from clipboard, or paste interactively
+    node buddy-crack.js comp.json    Read companion JSON from a file
     node buddy-crack.js unpatch      Restore original binary
     node buddy-crack.js status       Show current state
 
-  The JSON comes from the web creator at https://pickle-pixel.com/buddy
-  Design your companion there, copy the JSON, paste it here.
-
-  Example:
-    node buddy-crack.js '${JSON.stringify({name:"Turbo",personality:"A caffeinated dragon who debugs by breathing fire at stack traces.",rarity:"legendary",species:"dragon",eye:"✦",hat:"crown",shiny:true,stats:{DEBUGGING:100,PATIENCE:85,CHAOS:90,WISDOM:95,SNARK:80}})}'
+  Steps:
+    1. Design your buddy at https://pickle-pixel.com/buddy
+    2. Click "Copy Config JSON"
+    3. Run: node buddy-crack.js
+    4. Restart Claude Code
 `)
   process.exit(0)
 }
 
-// --- PATCH + INJECT (default: first arg is JSON) ---
+// --- PATCH + INJECT ---
+const inputArgs = (mode === 'unpatch' || mode === 'status' || mode === 'help') ? [] : args
+const raw = await getCompanionJSON(inputArgs)
+
 let companion
 try {
-  companion = JSON.parse(args.join(' '))
+  companion = JSON.parse(raw)
 } catch (e) {
   console.error(`\n  ✗ Invalid JSON: ${e.message}`)
-  console.error(`\n  Usage: node buddy-crack.js '<json from web creator>'`)
-  console.error(`  Get your JSON at https://pickle-pixel.com/buddy\n`)
+  console.error(`\n  Get your companion JSON at https://pickle-pixel.com/buddy`)
+  console.error(`  Copy it there, then run: node buddy-crack.js\n`)
   process.exit(1)
 }
 
@@ -317,3 +395,6 @@ console.log(`
 
   To undo: node buddy-crack.js unpatch
 `)
+}
+
+main().catch(console.error)
