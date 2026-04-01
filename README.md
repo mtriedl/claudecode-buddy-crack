@@ -6,8 +6,7 @@ Claude Code has a hidden gacha companion system (the Buddy system) that assigns 
 
 <img width="2197" height="1480" alt="image" src="https://github.com/user-attachments/assets/584da50b-c246-41ec-9157-f53c9a825194" />
 
-
-## [Use the Web Creator](https://picklepixel.dev/claudecode-buddy-crack)
+## [Use the Web Creator](https://pickle-pixel.com/buddy)
 
 Design your companion visually with live ASCII preview:
 - All 18 species with real sprite rendering
@@ -33,7 +32,7 @@ Same length, same structure, zero offset shift. Clean binary swap with automatic
 
 ## Quick Start
 
-1. **Design your buddy** on the [web creator](https://picklepixel.dev/claudecode-buddy-crack) and copy the config JSON
+1. **Design your buddy** on the [web creator](https://pickle-pixel.com/buddy) and copy the config JSON
 2. **Close Claude Code**
 3. **Download and run the patcher:**
 
