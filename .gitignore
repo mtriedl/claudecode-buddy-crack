@@ -1,0 +1,13 @@
+# Internal engineering notes (never published)
+/internal/
+
+# Test artifacts
+/tmp/
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
