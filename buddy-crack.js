@@ -120,20 +120,73 @@ function getVersionBinaries() {
 }
 
 // --- Config helpers ---
+// CRITICAL: Never overwrite the entire config. Claude Code's config can be 50KB+
+// with permissions, tool approvals, OAuth tokens, etc. If we can't parse it,
+// we do a raw string injection instead of risking a full overwrite.
+
+function injectCompanion(companion) {
+  const companionJSON = JSON.stringify(companion, null, 2)
+  const indented = companionJSON.split('\n').map((l, i) => i === 0 ? l : '  ' + l).join('\n')
+
+  if (!fs.existsSync(CONFIG_PATH)) {
+    // No config at all — safe to create
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ companion }, null, 2) + '\n')
+    return
+  }
+
+  const raw = fs.readFileSync(CONFIG_PATH, 'utf8')
+
+  // Try proper JSON parse first
+  let config
+  try {
+    config = JSON.parse(raw)
+  } catch {
+    const cleaned = raw.replace(/,\s*([\]}])/g, '$1')
+    try { config = JSON.parse(cleaned) } catch { config = null }
+  }
+
+  if (config) {
+    // Parsed successfully — safe to write back
+    config.companion = companion
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n')
+    return
+  }
+
+  // Could NOT parse the config. Do a raw string replacement to avoid nuking it.
+  console.log('  (Config has syntax issues — using safe string injection)')
+
+  // Try to find and replace existing "companion": {...} block
+  const companionRegex = /"companion"\s*:\s*\{[^}]*(?:\{[^}]*\}[^}]*)*\}/
+  if (companionRegex.test(raw)) {
+    const replaced = raw.replace(companionRegex, `"companion": ${indented}`)
+    fs.writeFileSync(CONFIG_PATH, replaced)
+    return
+  }
+
+  // No existing companion field — inject after the opening brace
+  const insertPos = raw.indexOf('{')
+  if (insertPos !== -1) {
+    const result = raw.slice(0, insertPos + 1) +
+      `\n  "companion": ${indented},` +
+      raw.slice(insertPos + 1)
+    fs.writeFileSync(CONFIG_PATH, result)
+    return
+  }
+
+  // Last resort — should never reach here
+  console.error('  ✗ Could not safely modify config. Save this JSON and add it manually:')
+  console.log(companionJSON)
+}
+
 function readConfig() {
   if (!fs.existsSync(CONFIG_PATH)) return {}
   try {
     return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))
   } catch {
-    // Handle trailing commas and other minor JSON issues
     const raw = fs.readFileSync(CONFIG_PATH, 'utf8')
     const cleaned = raw.replace(/,\s*([\]}])/g, '$1')
-    try { return JSON.parse(cleaned) } catch { return {} }
+    try { return JSON.parse(cleaned) } catch { return null }
   }
-}
-
-function writeConfig(config) {
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n')
 }
 
 // --- Validation ---
@@ -403,12 +456,10 @@ if (!mainOk) {
   process.exit(1)
 }
 
-// Step 3: Inject
+// Step 3: Inject (safe — never overwrites unrelated config fields)
 console.log('\n  --- Writing Config ---\n')
 
-const config = readConfig()
-config.companion = companion
-writeConfig(config)
+injectCompanion(companion)
 console.log(`  ✓ Written to ${CONFIG_PATH}`)
 
 // Done
