@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buddy Creator</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --common: #8b949e;
+    --uncommon: #3fb950;
+    --rare: #58a6ff;
+    --epic: #bc8cff;
+    --legendary: #d29922;
+    --shiny: #56d4dd;
+    --accent: #58a6ff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+    color: var(--legendary);
+  }
+
+  .subtitle {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-bottom: 2rem;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+  }
+
+  .panel h2 {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+
+  /* --- Selector groups --- */
+  .selector-group { margin-bottom: 1.25rem; }
+  .selector-group label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .opt {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    transition: all 0.15s;
+  }
+
+  .opt:hover { border-color: var(--accent); }
+  .opt.active { border-color: var(--accent); background: rgba(88, 166, 255, 0.1); }
+
+  .opt[data-rarity="common"].active { border-color: var(--common); background: rgba(139,148,158,0.1); }
+  .opt[data-rarity="uncommon"].active { border-color: var(--uncommon); background: rgba(63,185,80,0.1); }
+  .opt[data-rarity="rare"].active { border-color: var(--rare); background: rgba(88,166,255,0.1); }
+  .opt[data-rarity="epic"].active { border-color: var(--epic); background: rgba(188,140,255,0.1); }
+  .opt[data-rarity="legendary"].active { border-color: var(--legendary); background: rgba(210,153,34,0.1); }
+
+  .species-opt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    min-width: 72px;
+    font-size: 0.65rem;
+  }
+  .species-opt .face { font-size: 1rem; margin-bottom: 4px; white-space: nowrap; }
+
+  .eye-opt { font-size: 1.2rem; min-width: 40px; text-align: center; }
+  .hat-opt { font-size: 0.7rem; min-width: 60px; text-align: center; }
+
+  .toggle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .shiny-toggle {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+  }
+  .shiny-toggle.active {
+    border-color: var(--shiny);
+    background: rgba(86, 212, 221, 0.15);
+    color: var(--shiny);
+  }
+
+  /* --- Preview panel --- */
+  .preview-panel { position: sticky; top: 2rem; }
+
+  .sprite-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    text-align: center;
+    margin-bottom: 1rem;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sprite-pre {
+    font-family: inherit;
+    font-size: 1.1rem;
+    line-height: 1.25;
+    white-space: pre;
+  }
+
+  .rarity-badge {
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+
+  .shiny-badge {
+    color: var(--shiny);
+    font-size: 0.8rem;
+  }
+
+  .stats-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+  }
+
+  .stat-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .stat-row:last-child { margin-bottom: 0; }
+  .stat-name { width: 80px; color: var(--text-dim); }
+  .stat-bar {
+    flex: 1;
+    height: 10px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0 8px;
+  }
+  .stat-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+  .stat-val { width: 28px; text-align: right; }
+
+  /* --- Soul section --- */
+  .soul-section { margin-top: 1rem; }
+
+  .api-key-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+  }
+  .api-key-input::placeholder { color: var(--text-dim); }
+  .api-key-input:focus { outline: none; border-color: var(--accent); }
+
+  .generate-btn {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: opacity 0.15s;
+  }
+  .generate-btn:hover { opacity: 0.85; }
+  .generate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .soul-result {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    display: none;
+  }
+  .soul-result.visible { display: block; }
+  .soul-name { font-weight: bold; font-size: 1rem; margin-bottom: 4px; }
+  .soul-personality { color: var(--text-dim); font-style: italic; }
+
+  .export-btn {
+    width: 100%;
+    margin-top: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.75rem;
+    transition: all 0.15s;
+  }
+  .export-btn:hover { border-color: var(--accent); }
+
+  .error-msg {
+    color: #f85149;
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+
+  .regenerate-hint {
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    margin-top: 4px;
+    text-align: center;
+  }
+
+  /* --- Soul tabs --- */
+  .soul-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .soul-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.75rem;
+    transition: all 0.15s;
+  }
+  .soul-tab:hover { color: var(--text); }
+  .soul-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .soul-pane { display: none; }
+  .soul-pane.active { display: block; }
+
+  .prompt-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 0.7rem;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 220px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  .copy-prompt-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: bold;
+    transition: all 0.15s;
+    margin-bottom: 8px;
+  }
+  .copy-prompt-btn:hover { background: rgba(88,166,255,0.1); }
+
+  .diy-hint {
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .manual-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+  }
+  .manual-input::placeholder { color: var(--text-dim); }
+  .manual-input:focus { outline: none; border-color: var(--accent); }
+
+  .manual-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    resize: vertical;
+    min-height: 60px;
+    margin-bottom: 8px;
+  }
+  .manual-textarea::placeholder { color: var(--text-dim); }
+  .manual-textarea:focus { outline: none; border-color: var(--accent); }
+
+  .manual-apply-btn {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: opacity 0.15s;
+  }
+  .manual-apply-btn:hover { opacity: 0.85; }
+
+  /* --- Install guide --- */
+  .install-guide {
+    display: none;
+    margin-top: 2rem;
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .install-guide.visible { display: block; }
+
+  .guide-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+  }
+
+  .guide-panel h2 {
+    font-size: 1rem;
+    color: var(--legendary);
+    margin-bottom: 1rem;
+  }
+
+  .step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    align-items: flex-start;
+  }
+  .step:last-child { margin-bottom: 0; }
+
+  .step-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #fff;
+  }
+
+  .step-content {
+    flex: 1;
+  }
+
+  .step-title {
+    font-weight: bold;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+  }
+
+  .step-desc {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .code-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    overflow-x: auto;
+    white-space: pre;
+    position: relative;
+    margin-bottom: 4px;
+    line-height: 1.5;
+  }
+
+  .code-copy-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: var(--border);
+    border: none;
+    color: var(--text-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.65rem;
+  }
+  .code-copy-btn:hover { color: var(--text); }
+
+  .step-note {
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  .platform-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0.5rem;
+  }
+  .platform-tab {
+    background: none;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    color: var(--text-dim);
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.7rem;
+    border-radius: 4px 4px 0 0;
+  }
+  .platform-tab.active { background: var(--bg); color: var(--text); }
+  .platform-pane { display: none; }
+  .platform-pane.active { display: block; }
+
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+    .preview-panel { position: static; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Buddy Creator</h1>
+<p class="subtitle">Design your Claude Code companion. Pick every detail, generate a soul.</p>
+
+<div class="layout">
+  <div class="panel">
+    <h2>Customize</h2>
+
+    <div class="selector-group">
+      <label>Rarity</label>
+      <div class="options" id="rarity-options"></div>
+    </div>
+
+    <div class="selector-group">
+      <label>Species</label>
+      <div class="options" id="species-options"></div>
+    </div>
+
+    <div class="selector-group">
+      <label>Eyes</label>
+      <div class="options" id="eye-options"></div>
+    </div>
+
+    <div class="selector-group">
+      <label>Hat</label>
+      <div class="options" id="hat-options"></div>
+    </div>
+
+    <div class="selector-group">
+      <label>Shiny</label>
+      <div class="toggle">
+        <button class="shiny-toggle" id="shiny-btn" onclick="toggleShiny()">Shiny ✨</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel preview-panel">
+    <h2>Preview</h2>
+    <div class="sprite-box">
+      <div class="rarity-badge" id="rarity-badge"></div>
+      <div class="shiny-badge" id="shiny-label"></div>
+      <pre class="sprite-pre" id="sprite-display"></pre>
+    </div>
+
+    <div class="stats-box" id="stats-box"></div>
+
+    <div class="soul-section">
+      <h2>Name & Personality</h2>
+
+      <div class="soul-tabs">
+        <button class="soul-tab active" onclick="switchSoulTab('auto')">Auto (API)</button>
+        <button class="soul-tab" onclick="switchSoulTab('diy')">DIY (Prompt)</button>
+        <button class="soul-tab" onclick="switchSoulTab('manual')">Manual</button>
+      </div>
+
+      <!-- Tab 1: Auto with API key -->
+      <div class="soul-pane active" id="pane-auto">
+        <input type="password" class="api-key-input" id="api-key" placeholder="Anthropic API key (sk-ant-...)" />
+        <button class="generate-btn" id="gen-btn" onclick="generateSoul()">Generate Name & Personality</button>
+        <p class="regenerate-hint">Uses Claude Haiku — fraction of a cent per call</p>
+        <div class="error-msg" id="error-msg"></div>
+      </div>
+
+      <!-- Tab 2: DIY prompt to copy -->
+      <div class="soul-pane" id="pane-diy">
+        <p class="diy-hint">Copy this prompt and paste it into Claude (claude.ai, ChatGPT, or any LLM). Then paste the result back in the Manual tab.</p>
+        <div class="prompt-box" id="diy-prompt"></div>
+        <button class="copy-prompt-btn" onclick="copyPrompt()">Copy Prompt to Clipboard</button>
+      </div>
+
+      <!-- Tab 3: Manual entry -->
+      <div class="soul-pane" id="pane-manual">
+        <input type="text" class="manual-input" id="manual-name" placeholder="Name (e.g. Neckflap, Sir Chomps, Glitch)" />
+        <textarea class="manual-textarea" id="manual-personality" placeholder="Personality (one sentence describing how this creature behaves as a coding companion)"></textarea>
+        <button class="manual-apply-btn" onclick="applyManualSoul()">Apply</button>
+      </div>
+
+      <!-- Shared result display -->
+      <div class="soul-result" id="soul-result">
+        <div class="soul-name" id="soul-name"></div>
+        <div class="soul-personality" id="soul-personality"></div>
+        <button class="export-btn" onclick="exportJSON()">Copy Config JSON</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Install Guide (shown after export) -->
+<div class="install-guide" id="install-guide">
+  <div class="guide-panel">
+    <h2>How to Install Your Custom Buddy</h2>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Download the patcher</div>
+        <div class="step-desc">Save <strong>buddy-crack.js</strong> to any folder. It's a standalone Node.js script — no dependencies.</div>
+        <div class="code-block">curl -O https://raw.githubusercontent.com/anthropics/claude-code-leaked/main/buddy-crack.js<button class="code-copy-btn" onclick="copyCode(this)">copy</button></div>
+        <div class="step-note">Or download it manually from the repository.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Close Claude Code</div>
+        <div class="step-desc">The binary can't be patched while it's running. Exit all Claude Code sessions first.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Patch the binary</div>
+        <div class="step-desc">This creates a backup and patches <code>claude.exe</code> to accept custom companion data. Fully reversible.</div>
+
+        <div class="platform-tabs">
+          <button class="platform-tab active" onclick="switchPlatform('win')">Windows</button>
+          <button class="platform-tab" onclick="switchPlatform('mac')">macOS / Linux</button>
+        </div>
+        <div class="platform-pane active" id="plat-win">
+          <div class="code-block">node buddy-crack.js patch<button class="code-copy-btn" onclick="copyCode(this)">copy</button></div>
+        </div>
+        <div class="platform-pane" id="plat-mac">
+          <div class="code-block">node buddy-crack.js patch<button class="code-copy-btn" onclick="copyCode(this)">copy</button></div>
+          <div class="step-note">On macOS, the binary is at ~/.claude/local/claude. The patcher auto-detects your platform.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Paste your companion into config</div>
+        <div class="step-desc">Open your Claude config file and replace (or add) the <code>"companion"</code> field with the JSON you copied.</div>
+
+        <div class="platform-tabs">
+          <button class="platform-tab active" onclick="switchPlatform2('win2')">Windows</button>
+          <button class="platform-tab" onclick="switchPlatform2('mac2')">macOS / Linux</button>
+        </div>
+        <div class="platform-pane active" id="plat-win2">
+          <div class="code-block">notepad %USERPROFILE%\.claude.json<button class="code-copy-btn" onclick="copyCode(this)">copy</button></div>
+        </div>
+        <div class="platform-pane" id="plat-mac2">
+          <div class="code-block">nano ~/.claude.json<button class="code-copy-btn" onclick="copyCode(this)">copy</button></div>
+        </div>
+        <div class="step-desc" style="margin-top:6px">Find the <code>"companion"</code> key and replace its value with the JSON you copied. If there's no <code>"companion"</code> key, add it at the top level of the JSON object.</div>
+        <div class="step-note">Or use the patcher directly: <code>node buddy-crack.js inject '&lt;your-json&gt;'</code></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <div class="step-title">Restart Claude Code</div>
+        <div class="step-desc">Open Claude Code. Your custom companion should appear with the rarity, species, hat, and eyes you chose.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num" style="background:var(--text-dim)">↩</div>
+      <div class="step-content">
+        <div class="step-title">To undo</div>
+        <div class="step-desc">The patcher creates a backup of the original binary. Restore it anytime:</div>
+        <div class="code-block">node buddy-crack.js unpatch<button class="code-copy-btn" onclick="copyCode(this)">copy</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Constants ---
+const SPECIES = [
+  'duck','goose','blob','cat','dragon','octopus','owl','penguin',
+  'turtle','snail','ghost','axolotl','capybara','cactus','robot',
+  'rabbit','mushroom','chonk',
+]
+
+const EYES = ['·','✦','×','◉','@','°']
+
+const HATS = ['none','crown','tophat','propeller','halo','wizard','beanie','tinyduck']
+
+const RARITIES = ['common','uncommon','rare','epic','legendary']
+
+const STAT_NAMES = ['DEBUGGING','PATIENCE','CHAOS','WISDOM','SNARK']
+
+const RARITY_STARS = {common:'★',uncommon:'★★',rare:'★★★',epic:'★★★★',legendary:'★★★★★'}
+const RARITY_FLOOR = {common:5,uncommon:15,rare:25,epic:35,legendary:50}
+const RARITY_COLORS = {common:'var(--common)',uncommon:'var(--uncommon)',rare:'var(--rare)',epic:'var(--epic)',legendary:'var(--legendary)'}
+
+const SPRITES = {
+  duck:     ['    __      ','  <({E} )___  ','   (  ._>   ','    `--´    '],
+  goose:    ['     ({E}>    ','     ||     ','   _(__)_   ','    ^^^^    '],
+  blob:     ['   .----.   ','  ( {E}  {E} )  ','  (      )  ','   `----´   '],
+  cat:      ['   /\\_/\\    ','  ( {E}   {E})  ','  (  ω  )   ','  (")_(")   '],
+  dragon:   ['  /^\\  /^\\  ',' <  {E}  {E}  > ',' (   ~~   ) ','  `-vvvv-´  '],
+  octopus:  ['   .----.   ','  ( {E}  {E} )  ','  (______)  ','  /\\/\\/\\/\\  '],
+  owl:      ['   /\\  /\\   ','  (({E})({E}))  ','  (  ><  )  ','   `----´   '],
+  penguin:  ['  .---.     ','  ({E}>{E})     ',' /(   )\\    ','  `---´     '],
+  turtle:   ['   _,--._   ','  ( {E}  {E} )  ',' /[______]\\ ','  ``    ``  '],
+  snail:    [' {E}    .--.  ','  \\  ( @ )  ','   \\_`--´   ','  ~~~~~~~   '],
+  ghost:    ['   .----.   ','  / {E}  {E} \\  ','  |      |  ','  ~`~``~`~  '],
+  axolotl:  ['}~(______)~{','}~({E} .. {E})~{','  ( .--. )  ','  (_/  \\_)  '],
+  capybara: ['  n______n  ',' ( {E}    {E} ) ',' (   oo   ) ','  `------´  '],
+  cactus:   [' n  ____  n ',' | |{E}  {E}| | ',' |_|    |_| ','   |    |   '],
+  robot:    ['   .[||].   ','  [ {E}  {E} ]  ','  [ ==== ]  ','  `------´  '],
+  rabbit:   ['   (\\__/)   ','  ( {E}  {E} )  ',' =(  ..  )= ','  (")__(")  '],
+  mushroom: [' .-o-OO-o-. ','(__________)','   |{E}  {E}|   ','   |____|   '],
+  chonk:    ['  /\\    /\\  ',' ( {E}    {E} ) ',' (   ..   ) ','  `------´  '],
+}
+
+const FACES = {
+  duck:'({E}>',goose:'({E}>',blob:'({E}{E})',cat:'={E}ω{E}=',dragon:'<{E}~{E}>',
+  octopus:'~({E}{E})~',owl:'({E})({E})',penguin:'({E}>)',turtle:'[{E}_{E}]',
+  snail:'{E}(@)',ghost:'/{E}{E}\\',axolotl:'}({E}{E}){',capybara:'({E}oo{E})',
+  cactus:'|{E}{E}|',robot:'[{E}{E}]',rabbit:'({E}.{E})',mushroom:'|{E}{E}|',chonk:'({E}..{E})',
+}
+
+const HAT_LINES = {
+  none:'',crown:'   \\^^^/    ',tophat:'   [___]    ',propeller:'    -+-     ',
+  halo:'   (   )    ',wizard:'    /^\\     ',beanie:'   (___)    ',tinyduck:'    ,>      ',
+}
+
+// --- State ---
+let state = {
+  rarity: 'legendary',
+  species: 'cat',
+  eye: '✦',
+  hat: 'tophat',
+  shiny: true,
+  soul: null,
+}
+
+// --- Build UI ---
+function buildOptions() {
+  // Rarity
+  const rarityEl = document.getElementById('rarity-options')
+  RARITIES.forEach(r => {
+    const btn = document.createElement('button')
+    btn.className = 'opt'
+    btn.dataset.rarity = r
+    btn.textContent = `${RARITY_STARS[r]} ${r}`
+    btn.onclick = () => { state.rarity = r; updateHatOptions(); refresh() }
+    rarityEl.appendChild(btn)
+  })
+
+  // Species
+  const speciesEl = document.getElementById('species-options')
+  SPECIES.forEach(s => {
+    const btn = document.createElement('button')
+    btn.className = 'opt species-opt'
+    btn.innerHTML = `<span class="face">${FACES[s].replaceAll('{E}','·')}</span>${s}`
+    btn.onclick = () => { state.species = s; refresh() }
+    speciesEl.appendChild(btn)
+  })
+
+  // Eyes
+  const eyeEl = document.getElementById('eye-options')
+  EYES.forEach(e => {
+    const btn = document.createElement('button')
+    btn.className = 'opt eye-opt'
+    btn.textContent = e
+    btn.onclick = () => { state.eye = e; refresh() }
+    eyeEl.appendChild(btn)
+  })
+
+  // Hats
+  updateHatOptions()
+}
+
+function updateHatOptions() {
+  const hatEl = document.getElementById('hat-options')
+  hatEl.innerHTML = ''
+  const hatList = state.rarity === 'common' ? ['none'] : HATS
+  if (state.rarity === 'common') state.hat = 'none'
+  if (!hatList.includes(state.hat)) state.hat = hatList[0]
+
+  hatList.forEach(h => {
+    const btn = document.createElement('button')
+    btn.className = 'opt hat-opt'
+    btn.textContent = h === 'none' ? 'none' : `${HAT_LINES[h].trim()} ${h}`
+    btn.onclick = () => { state.hat = h; refresh() }
+    hatEl.appendChild(btn)
+  })
+}
+
+function toggleShiny() {
+  state.shiny = !state.shiny
+  refresh()
+}
+
+// --- Rendering ---
+function renderSprite(species, eye, hat) {
+  const body = SPRITES[species].map(l => l.replaceAll('{E}', eye))
+  const lines = [...body]
+  if (hat !== 'none') lines.unshift(HAT_LINES[hat])
+  return lines.join('\n')
+}
+
+function getStats(rarity) {
+  const floor = RARITY_FLOOR[rarity]
+  if (rarity === 'legendary') return {DEBUGGING:100,PATIENCE:85,CHAOS:90,WISDOM:95,SNARK:80}
+  if (rarity === 'epic') return {DEBUGGING:90,PATIENCE:70,CHAOS:75,WISDOM:85,SNARK:65}
+  if (rarity === 'rare') return {DEBUGGING:80,PATIENCE:55,CHAOS:60,WISDOM:75,SNARK:50}
+  if (rarity === 'uncommon') return {DEBUGGING:65,PATIENCE:40,CHAOS:45,WISDOM:55,SNARK:35}
+  return {DEBUGGING:40,PATIENCE:25,CHAOS:30,WISDOM:35,SNARK:20}
+}
+
+function refresh() {
+  const color = RARITY_COLORS[state.rarity]
+
+  // Active states
+  document.querySelectorAll('#rarity-options .opt').forEach((b, i) =>
+    b.classList.toggle('active', RARITIES[i] === state.rarity))
+  document.querySelectorAll('#species-options .opt').forEach((b, i) =>
+    b.classList.toggle('active', SPECIES[i] === state.species))
+  document.querySelectorAll('#eye-options .opt').forEach((b, i) =>
+    b.classList.toggle('active', EYES[i] === state.eye))
+  document.querySelectorAll('#hat-options .opt').forEach((b, i) => {
+    const hatList = state.rarity === 'common' ? ['none'] : HATS
+    b.classList.toggle('active', hatList[i] === state.hat)
+  })
+  document.getElementById('shiny-btn').classList.toggle('active', state.shiny)
+
+  // Sprite
+  const badge = document.getElementById('rarity-badge')
+  badge.textContent = `${RARITY_STARS[state.rarity]} ${state.rarity.toUpperCase()} ${state.species.toUpperCase()}`
+  badge.style.color = color
+
+  document.getElementById('shiny-label').textContent = state.shiny ? '✨ SHINY ✨' : ''
+
+  const sprite = document.getElementById('sprite-display')
+  sprite.textContent = renderSprite(state.species, state.eye, state.hat)
+  sprite.style.color = color
+
+  // Stats
+  const stats = getStats(state.rarity)
+  const statsBox = document.getElementById('stats-box')
+  statsBox.innerHTML = STAT_NAMES.map(name => `
+    <div class="stat-row">
+      <span class="stat-name">${name}</span>
+      <div class="stat-bar"><div class="stat-fill" style="width:${stats[name]}%;background:${color}"></div></div>
+      <span class="stat-val">${stats[name]}</span>
+    </div>
+  `).join('')
+
+  // Update DIY prompt if visible
+  if (document.getElementById('pane-diy').classList.contains('active')) updateDiyPrompt()
+}
+
+// --- Soul tabs ---
+function switchSoulTab(tab) {
+  document.querySelectorAll('.soul-tab').forEach((t, i) =>
+    t.classList.toggle('active', ['auto','diy','manual'][i] === tab))
+  document.querySelectorAll('.soul-pane').forEach(p => p.classList.remove('active'))
+  document.getElementById('pane-' + tab).classList.add('active')
+  if (tab === 'diy') updateDiyPrompt()
+}
+
+function buildPromptText() {
+  const stats = getStats(state.rarity)
+  const statSummary = STAT_NAMES
+    .map(n => `${n}: ${stats[n]}/100`)
+    .join(', ')
+  const peakStat = STAT_NAMES.reduce((a, b) => stats[a] >= stats[b] ? a : b)
+  const dumpStat = STAT_NAMES.reduce((a, b) => stats[a] <= stats[b] ? a : b)
+
+  return `I need a name and personality for a small ASCII companion pet that lives beside a developer's terminal in Claude Code.
+
+Here are the companion's traits:
+- Species: ${state.species}
+- Rarity: ${state.rarity}
+- Shiny: ${state.shiny ? 'YES (rare sparkly variant)' : 'no'}
+- Hat: ${state.hat}
+- Eyes: ${state.eye}
+- Stats: ${statSummary}
+- Peak stat: ${peakStat}
+- Dump stat: ${dumpStat}
+
+Rules:
+- Name should be 1-2 words, memorable, slightly absurd, and feel like a pet name a programmer would give. Examples: "Neckflap", "Biscuit", "Turbo", "Sir Chomps", "Glitch", "Wobbles", "Dumpling".
+- Personality should be exactly ONE sentence describing how this creature behaves as a coding companion. Reference their species traits, their peak stat (${peakStat}), and have a comedic edge.
+- Shiny companions should have slightly more dramatic or mythic personalities.
+- Higher rarity companions should feel more powerful/wise/chaotic.
+
+Respond with just the name on the first line and the personality on the second line. Nothing else.`
+}
+
+function updateDiyPrompt() {
+  document.getElementById('diy-prompt').textContent = buildPromptText()
+}
+
+function copyPrompt() {
+  const text = buildPromptText()
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-prompt-btn')
+    btn.textContent = 'Copied!'
+    setTimeout(() => btn.textContent = 'Copy Prompt to Clipboard', 1500)
+  })
+}
+
+function applyManualSoul() {
+  const name = document.getElementById('manual-name').value.trim()
+  const personality = document.getElementById('manual-personality').value.trim()
+  if (!name) { alert('Enter a name'); return }
+
+  state.soul = { name, personality: personality || 'A loyal companion.' }
+  document.getElementById('soul-name').textContent = state.soul.name
+  document.getElementById('soul-personality').textContent = state.soul.personality
+  document.getElementById('soul-result').classList.add('visible')
+
+  const badge = document.getElementById('rarity-badge')
+  badge.textContent = `${RARITY_STARS[state.rarity]} ${name.toUpperCase()}`
+}
+
+// --- Soul generation (auto) ---
+async function generateSoul() {
+  const apiKey = document.getElementById('api-key').value.trim()
+  const btn = document.getElementById('gen-btn')
+  const errEl = document.getElementById('error-msg')
+  const resultEl = document.getElementById('soul-result')
+
+  errEl.classList.remove('visible')
+
+  if (!apiKey) {
+    errEl.textContent = 'Enter your Anthropic API key above'
+    errEl.classList.add('visible')
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = 'Generating...'
+
+  try {
+    const bones = {
+      rarity: state.rarity,
+      species: state.species,
+      eye: state.eye,
+      hat: state.hat,
+      shiny: state.shiny,
+      stats: getStats(state.rarity),
+    }
+
+    const res = await fetch('/api/generate-soul', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bones, apiKey }),
+    })
+
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+
+    state.soul = data
+    document.getElementById('soul-name').textContent = data.name
+    document.getElementById('soul-personality').textContent = data.personality
+    resultEl.classList.add('visible')
+
+    // Update badge with name
+    const badge = document.getElementById('rarity-badge')
+    badge.textContent = `${RARITY_STARS[state.rarity]} ${data.name.toUpperCase()}`
+
+  } catch (err) {
+    errEl.textContent = err.message
+    errEl.classList.add('visible')
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Generate Name & Personality'
+  }
+}
+
+// --- Export ---
+function exportJSON() {
+  const stats = getStats(state.rarity)
+  const companion = {
+    name: state.soul?.name || 'Buddy',
+    personality: state.soul?.personality || 'A loyal companion.',
+    hatchedAt: Date.now(),
+    rarity: state.rarity,
+    species: state.species,
+    eye: state.eye,
+    hat: state.hat,
+    shiny: state.shiny,
+    stats,
+  }
+
+  const json = JSON.stringify(companion, null, 2)
+  navigator.clipboard.writeText(json).then(() => {
+    const btn = document.querySelector('.export-btn')
+    btn.textContent = 'Copied!'
+    setTimeout(() => btn.textContent = 'Copy Config JSON', 1500)
+
+    // Show install guide
+    document.getElementById('install-guide').classList.add('visible')
+    document.getElementById('install-guide').scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
+
+// --- Install guide helpers ---
+function copyCode(btn) {
+  const block = btn.parentElement
+  const text = block.textContent.replace('copy', '').trim()
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'done'
+    setTimeout(() => btn.textContent = 'copy', 1200)
+  })
+}
+
+function switchPlatform(id) {
+  document.getElementById('plat-win').classList.toggle('active', id === 'win')
+  document.getElementById('plat-mac').classList.toggle('active', id === 'mac')
+  const tabs = document.getElementById('plat-win').previousElementSibling.querySelectorAll('.platform-tab')
+  tabs[0].classList.toggle('active', id === 'win')
+  tabs[1].classList.toggle('active', id === 'mac')
+}
+
+function switchPlatform2(id) {
+  document.getElementById('plat-win2').classList.toggle('active', id === 'win2')
+  document.getElementById('plat-mac2').classList.toggle('active', id === 'mac2')
+  const tabs = document.getElementById('plat-win2').previousElementSibling.querySelectorAll('.platform-tab')
+  tabs[0].classList.toggle('active', id === 'win2')
+  tabs[1].classList.toggle('active', id === 'mac2')
+}
+
+// --- Init ---
+buildOptions()
+refresh()
+</script>
+</body>
+</html>
