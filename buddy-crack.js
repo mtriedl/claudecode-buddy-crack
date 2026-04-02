@@ -501,6 +501,61 @@ if (mode === 'status') {
   process.exit(0)
 }
 
+// --- GUARD (SessionStart hook) ---
+if (mode === 'guard') {
+  // Silence all console output — hook stdout/stderr pollutes the session.
+  console.log = () => {}
+  console.error = () => {}
+
+  // Clean up stale .old files from previous rename-trick patches.
+  try {
+    const binDir = path.dirname(CLAUDE_BIN)
+    const binBase = path.basename(CLAUDE_BIN)
+    for (const f of fs.readdirSync(binDir)) {
+      if (f.startsWith(binBase + '.old.')) {
+        try { fs.unlinkSync(path.join(binDir, f)) } catch {}
+      }
+    }
+  } catch {}
+
+  // Check if companion exists in config — if not, nothing to guard.
+  const config = readConfig()
+  if (!config || !config.companion) process.exit(0)
+
+  // Preemptively patch any unpatched versioned binaries so future
+  // auto-update copies are already patched when Iv4 copies them.
+  for (const ver of getVersionBinaries()) {
+    if (patchStatus(ver.path) === 'original') applyPatch(ver.path)
+  }
+
+  const status = patchStatus(CLAUDE_BIN)
+  if (status === 'patched') process.exit(0)
+  if (status !== 'original' && status !== 'partial') process.exit(0)
+
+  // Main binary needs patching. Try direct write first.
+  const result = applyPatch(CLAUDE_BIN)
+  if (result !== 'busy') process.exit(0)
+
+  // Direct write failed (EBUSY — exe is locked by a running session).
+  // Use the same rename trick the auto-updater uses: on Windows you can
+  // rename a running .exe, freeing the original path for a new file.
+  try {
+    const data = fs.readFileSync(CLAUDE_BIN)
+    const sites = findPatchSites(data)
+    const origSites = sites.filter(s => s.state === 'original')
+    if (origSites.length === 0) process.exit(0)
+
+    for (const site of origSites) site.patchReturn.copy(data, site.offset)
+
+    const oldPath = CLAUDE_BIN + '.old.' + Date.now()
+    fs.renameSync(CLAUDE_BIN, oldPath)
+    fs.writeFileSync(CLAUDE_BIN, data)
+    try { fs.unlinkSync(oldPath) } catch {}
+  } catch {}
+
+  process.exit(0)
+}
+
 // --- HELP ---
 if (mode === '--help' || mode === '-h' || mode === 'help') {
   console.log(`
@@ -512,6 +567,7 @@ if (mode === '--help' || mode === '-h' || mode === 'help') {
     node buddy-crack.js comp.json    Read companion JSON from a file
     node buddy-crack.js unpatch      Restore original binary
     node buddy-crack.js status       Show current state
+    node buddy-crack.js guard        Auto-repatch (for SessionStart hook)
 
   Steps:
     1. Design your buddy at https://pickle-pixel.com/buddy
@@ -523,7 +579,7 @@ if (mode === '--help' || mode === '-h' || mode === 'help') {
 }
 
 // --- PATCH + INJECT ---
-const inputArgs = (mode === 'unpatch' || mode === 'status' || mode === 'help') ? [] : args
+const inputArgs = (mode === 'unpatch' || mode === 'status' || mode === 'help' || mode === 'guard') ? [] : args
 const raw = await getCompanionJSON(inputArgs)
 
 let companion

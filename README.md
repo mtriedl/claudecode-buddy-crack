@@ -43,7 +43,44 @@ node buddy-crack.js                    # Patch + inject (clipboard or interactiv
 node buddy-crack.js companion.json     # Patch + inject from file
 node buddy-crack.js status             # Show patch state + companion info
 node buddy-crack.js unpatch            # Restore original binary from backup
+node buddy-crack.js guard              # Auto-repatch (for SessionStart hook)
 ```
+
+## Surviving Auto-Updates
+
+Claude Code auto-updates weekly and overwrites the patched binary. The `guard` command solves this permanently by hooking into Claude Code's own startup sequence.
+
+**One-time setup** — add this to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /path/to/buddy-crack.js guard",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Replace `/path/to/buddy-crack.js` with the actual absolute path. On Windows use forward slashes: `"node C:/Users/You/buddy-crack.js guard"`.
+
+Every time Claude Code starts (any terminal, any project), the guard silently:
+
+1. Cleans up temp files from previous patches
+2. Pre-patches all versioned binaries so future update copies come ready
+3. If the main binary was overwritten by an auto-update, patches it on the spot using the same atomic rename trick the updater itself uses — works even while other sessions are running
+4. Exits instantly if already patched
+
+No manual re-patching, no restarts, no gaps.
 
 ## How It Works
 
@@ -93,7 +130,7 @@ All platforms follow the XDG Base Directory specification. Version binaries are 
 
 ## Version Compatibility
 
-The binary patch targets specific minified variable names in Claude Code **v2.1.89**. Different versions will have different minified names, which means the patch pattern won't match. The tool detects this and tells you — it won't modify a binary it doesn't recognize. When Claude Code updates, you'll need an updated patch pattern.
+The patcher uses landmark-based detection (`let{bones:` in the binary) rather than hardcoded variable names, making it version-agnostic across Claude Code releases. It reads the actual minified names at runtime and constructs the patch pattern dynamically. With the guard hook installed, new versions are patched automatically on first launch.
 
 ## Requirements
 
